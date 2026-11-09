@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Agentic ULCA · Workspace</title>
+    <link rel="stylesheet" href="/assets/style.css">
+  </head>
+  <body>
+    <header><strong>Agentic ULCA</strong><span id="dataset-name">データ読み込み中</span><span class="badge">ULCA Agent</span>
+      <button id="details-open">分析の詳細</button>
+    </header>
+    <main>
+      <aside class="panel rail">
+        <h2>パラメータ・履歴</h2>
+        <div class="scroll">
+          <div id="weights" class="empty">分析後に表示</div>
+          <h3>分析履歴</h3>
+          <div id="history"></div>
+        </div>
+      </aside>
+      <section class="center">
+        <section class="panel projection">
+          <div class="section-head">
+            <h2>2D ULCA Projection</h2>
+          </div>
+          <p id="comparison" class="comparison">分析したい内容を右のアシスタントに入力してください</p>
+          <div class="scatter-toolbar" role="group" aria-label="散布図の表示操作">
+            <button id="scatter-zoom-in" aria-label="散布図を拡大">＋</button>
+            <button id="scatter-zoom-out" aria-label="散布図を縮小">−</button>
+            <button id="scatter-reset">全体表示</button>
+            <output id="scatter-zoom" aria-live="polite">100%</output>
+            <span>＋／−で拡大縮小・下と右のバーでスクロール</span>
+          </div>
+          <div class="scatter-viewport">
+            <div id="scatter" class="chart empty">ULCA散布図</div>
+            <div id="scatter-scroll-y" class="scatter-scroll-y" tabindex="0" role="region" aria-label="散布図の縦スクロール"><div></div></div>
+            <div id="scatter-scroll-x" class="scatter-scroll-x" tabindex="0" role="region" aria-label="散布図の横スクロール"><div></div></div>
+          </div>
+          <div class="legend"><span style="--color:#b42046">Barolo</span><span style="--color:#21845a">Grignolino</span><span style="--color:#6946ad">Barbera</span>
+          </div>
+        </section>
+        <section class="panel contributions">
+          <div class="section-head">
+            <h2>Component Weights (M)</h2>
+            <select id="axis" aria-label="寄与度の軸">
+              <option value="0">Axis 1 (X)</option>
+              <option value="1">Axis 2 (Y)</option>
+            </select>
+            <select id="loading-order" aria-label="寄与度の並び順">
+              <option value="original">変数順</option>
+              <option value="magnitude">寄与度順</option>
+            </select>
+          </div>
+          <div id="loadings" class="bars empty">分析後、変数名をクリックして分布を確認できます</div>
+        </section>
+      </section>
+      <section class="panel assistant">
+        <h2>AI Analysis Assistant</h2>
+        <div id="messages" class="scroll messages">
+          <div class="welcome">
+            <h3>何を比較しますか？</h3>
+            <p>説明中の変数名をクリックすると、右側で実際の分布を確認できます。</p>
+            <div class="examples">
+              <button data-prompt="全体構造を把握したい">全体構造を把握</button>
+              <button data-prompt="Baroloの特徴が分かるように分離して">Baroloの特徴</button>
+              <button data-prompt="BaroloとGrignolinoを比較して">BaroloとGrignolinoを比較</button>
+              <button data-prompt="Baroloの内部構造の特性が見たい">Baroloの内部構造の特性が見たい</button>
+            </div>
+          </div>
+        </div>
+        <p id="status" role="status" aria-live="polite"></p>
+        <form id="analyze">
+          <label class="sr-only" for="prompt">分析の指示</label>
+          <textarea id="prompt" rows="3" maxlength="3000" required placeholder="例：Barberaの特徴を教えて"></textarea>
+          <button id="submit" type="submit">分析する ↗</button>
+        </form>
+      </section>
+      <section class="panel inspection">
+        <h2>Inspection Pane</h2>
+        <div class="scroll">
+          <div id="inspection-empty" class="empty inspection-guide"><span class="inspect-icon">↖</span>
+            <h3>変数の分布を確認</h3>
+            <p>説明文や寄与度グラフの<br>変数名をクリックしてください。</p>
+          </div>
+          <div id="inspection-content" hidden>
+            <div class="feature-heading">
+              <p class="eyebrow">SELECTED FEATURE</p>
+              <h3 id="feature-name"></h3>
+            </div>
+            <div id="distribution"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <dialog id="details">
+      <div class="section-head">
+        <h2>分析の詳細</h2>
+        <button id="details-close">閉じる</button>
+      </div>
+      <div id="details-body">分析後に表示されます。</div>
+    </dialog>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>

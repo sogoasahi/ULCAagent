@@ -1,0 +1,6 @@
+{
+  "provider": "openai",
+  "base_url": "http://10.34.33.2:11434",
+  "model": "qwen3.8:27b-mlx",
+  "timeout_seconds": 180
+}

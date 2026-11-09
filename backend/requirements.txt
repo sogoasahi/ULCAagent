@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+httpx
+pydantic>=2
+numpy
+scipy
+scikit-learn
+matplotlib
+threadpoolctl
+python-dotenv
