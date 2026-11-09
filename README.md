@@ -1,95 +1,149 @@
-# ULCA_agent
+# ULCAagent
 
-## データの切り替え
+自然言語による分析指示と直接操作で、ULCA（User-guided Linear Component Analysis）の2次元投影を探索するローカルWebアプリです。WineとMNISTの数字0・6・9に対応しています。
 
-現在は `backend/dataset.json` の `name` を `wine` に設定しています。MNISTへ切り替える場合は **`name` を `mnist069` に変更してサーバーを再起動し、画面を再読み込み**してください。環境変数 `ULCA_DATASET` でも上書きできます。
+![Wineの分析画面](docs/screenshots/wine-distribution-ellipses.png)
 
-MNISTは既存のローカルキャッシュから数字0・6・9を各500件（元データの順番）、計1,500件読み込みます。画像は28×28、784変数です。内部IDは0→数字0、1→数字6、2→数字9ですが、画面・入力文では数字の名前を使います。寄与度の変数名 `Pixel(行,列)` は1始まりで、左上が(1,1)です。箱ひげ図は画素の元の値（0〜255）、ULCA計算はWineと同じ変数ごとの標準化を使用します。
+## セットアップ・起動
 
-シルエット最適化・手動調整・逆調整の方式は共通です。784変数の計算では対称行列の上位固有ベクトルのみを計算し、Wineの計算処理は従来どおりです。変更前のコードは `archive/backups/before_mnist_switch_20261028.zip` に保存しています。
-
-検証：Wineの回帰テストは `ULCA_DATASET=wine`、MNISTは `test_mnist_dataset.py` を対象に実行します。
-
-Wineデータ（178サンプル・13変数・3群）をULCAで2次元に投影し、全体構造や群の違いを調べるローカル分析画面です。内部ラベル0・1・2は、本アプリではBarolo（赤）・Grignolino（緑）・Barbera（紫）と表示します。
-
-## 起動
-
-プロジェクトのルートで実行し、[分析画面](http://127.0.0.1:8001/)を開きます。
+Python 3.11で動作確認しています。以下はWindows PowerShellでの手順です。
 
 ```powershell
+git clone https://github.com/sogoasahi/ULCAagent.git
+cd ULCAagent
+python -m venv .venv
+.venv/Scripts/python.exe -m pip install -r backend/requirements.txt
 .venv/Scripts/python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8001
 ```
 
-APIサーバーがHTML・JavaScript・CSSも配信します。通常の起動にNode.jsやビルドは不要です。Python依存パッケージは `backend/requirements.txt` に記載しています。
+[分析画面](http://127.0.0.1:8001/)を開いてください。APIサーバーがHTML・JavaScript・CSSも配信するため、通常の起動にNode.jsや画面のビルドは不要です。停止はサーバーを起動したターミナルで `Ctrl+C` を押します。
 
-画面を開発する場合は `frontend` で `npm ci`、`npm run dev` を実行します。開発用画面は5173番、APIの接続先は8001番です。`npm run build` は `frontend/dist/` を生成しますが、通常のAPIサーバーは生成物ではなくソースを配信します。
-
-## 操作と分析
-
-- 初期表示は全群 `w_tg=0, w_bg=1, w_bw=1, alpha=10` で、探索しません。
-- 「全体構造を把握したい」「Baroloの特徴を教えて」「BaroloとGrignolinoを比較して」などを入力すると、200回のULCA評価でパラメータを探索します。
-- 「Baroloの内部構造の特性が見たい」「赤の多様性を見たい」は内部変動の探索です。出力座標から対象群の群内分散（X＋Y）を他の各群の平均群内分散で割り、対象群の分散をこのモードの初期投影以上に保つ候補から最大化します。自動探索では分離重みw_bwを0に固定し、シルエット最適化と区別します。分析詳細で分散比と各群の分散を確認できます。サブクラスタの検出を保証する指標ではありません。
-- 重みは0〜1、alphaは0〜20です。`w_tg` と `w_bg` は独立して変更できます。
-- 散布図が直線状・点に潰れた場合は失敗です。中心化した全点の特異値で短方向／長方向が0.001以下、または長方向のRMSが1e-8以下なら失敗とし、自動探索・逆調整では採用しません。手動変更の失敗時は直前の散布図を保持します。
-- 変数名をクリックすると、3群すべての元の値を箱ひげ図で表示します。投影係数は変数順・絶対値順を選択できます。
-- スライダーで手動調整できます。重心や共分散楕円のドラッグでは、指定した距離・面積比に近づくよう逆調整します。目標の完全な再現は保証しません。
-- 散布図の＋／−ボタンで拡大縮小（10〜10,000%）、下・右のスクロールバーで表示範囲を移動できます。ホイールは縦移動、Shift＋ホイールは横移動、背景ドラッグも可能です。「全体表示」で戻ります。表示操作では分析結果の座標・重みを変更しません。
-- 分布楕円は各クラスタの重心・共分散から向きと縦横比を決め、実際の点の95%以上を含む大きさにします（信頼区間ではありません）。逆調整用の面積比では表示倍率を除去して共分散の面積と対応させます。
-- 履歴はブラウザーのメモリー内に保持し、再読み込みで消えます。分析の詳細でLLMの分類・説明の応答時間を確認できます。
-
-説明中の括弧は投影係数を示します。係数だけで元データの高低や因果関係は判断できません。計算・解釈の詳細は [WORKFLOW.md](backend/knowledge/WORKFLOW.md) と [Interpretation.md](backend/knowledge/Interpretation.md) を参照してください。
+LLMを使う場合は、起動前に次の設定を行ってください。LLMなしでも投影・ルール分類・定型説明・手動調整を利用できます。
 
 ## LLMの設定
 
-現在はローカルネットワークのOllamaを使用します。接続先・モデルは `backend/llm.json` に保存しています。
+`backend/llm.json` の `provider` で接続先を選びます。現在の既定値は `openai` です。環境変数 `ULCA_LLM_PROVIDER` がある場合はそちらを優先します。
 
-- 接続先：`http://10.34.33.2:11434`
-- モデル：`qwen3.8:27b-mlx`（サーバーのモデル一覧でvision対応を確認）
-- API：`/api/chat`。プロンプト分類はJSON形式、説明は数値とbase64散布図を送信します。
-- タイムアウト：接続10秒、応答180秒。
-- Ollama説明用には全座標・クラス統計を小数4桁に整え、各軸の係数上位12画素と各比較の分離寄与上位12画素の和集合を送信します。元の計算・画面・保存結果は丸めず保持します。
-- 接続失敗時はルール分類・定型説明に戻り、OpenAIには自動転送しません。
-
-`OLLAMA_BASE_URL` と `OLLAMA_MODEL` で設定を上書きできます。`ULCA_LLM_PROVIDER=none` でLLM無効、`openai` で既存OpenAI接続を明示的に選択できます。OpenAI用の既存キーは変更していません。
-起動時には引き続きbackend/.envとルート.envを読み込みます。Ollama選択時にはOpenAIのキーが存在しても使用しません。
-
-Ollamaに接続できるネットワーク上でAPIサーバーを起動してください。ブラウザーはULCA APIにのみ通信します。LLM接続状況は `/api/status` で確認できます（llm_enabledは設定の有効・無効であり、疎通結果ではありません）。
-
-## 構成
-
-| パス | 役割 |
+| provider | 動作 |
 |---|---|
-| `backend/main.py` | 起動口 |
-| `backend/app.py` | API、入力検証、LLM通信 |
-| `backend/prompts.py` | 説明用プロンプト |
-| `backend/engine.py` | 対象判定、探索、評価、逆調整、定型説明 |
-| `backend/ulca.py` | 固有値分解による投影 |
-| `backend/knowledge/` | 実装に対応する参照資料の正本 |
-| `tests/` | API・計算の回帰テスト |
-| `frontend/index.html`、`frontend/public/assets/` | HTML・JavaScript・CSS |
-| `docs/` | 操作説明・スクリーンショット・過去の確認記録 |
-| `scripts/` | 手動のLLM接続確認 |
-| `archive/research/` | UI実行には使わない研究資料・スライド |
-| `archive/backups/` | 過去のソース保存。実行時には使用しません |
+| `openai` | OpenAI Responses APIで意図分類と散布図の説明を生成 |
+| `ollama` | Ollama互換の `/api/chat` で分類と説明を生成 |
+| `none` | LLMを使わず、ルール分類と数値に基づく定型説明を使用 |
 
-現行画面は設定でWineとMNIST 0・6・9を切り替えられます。旧APIとは互換ではありません。技術資料の正本は `backend/knowledge/` です。
+### OpenAI
 
-## 検証
+プロジェクトルートに `.env` を作成し、キーとモデルを設定します。
+
+```dotenv
+OPENAI_API_KEY=your_api_key
+OPENAI_MODEL=gpt-4o-mini
+```
+
+`PROTOTYPE_OPENAI_KEY`・`PROTOTYPE_OPENAI_MODEL` が設定されている場合は、それぞれ通常の設定より優先します。OpenAI使用時のモデルは環境変数で指定し、`llm.json` の `model` はOllama用です。
+
+既存の環境変数、`backend/.env`、ルートの `.env` の順で値を優先します。`.env` はGit管理対象外です。APIキーをコードやREADMEに記載しないでください。
+
+### Ollama
+
+`backend/llm.json` の `provider` を `ollama` に変更し、`base_url` と `model` に利用するサーバー・画像対応モデルを指定します。`OLLAMA_BASE_URL`・`OLLAMA_MODEL` で上書きできます。接続タイムアウトは10秒、応答待ちは同ファイルの `timeout_seconds`（既定180秒）です。
+
+### 通信内容・エラー時の動作
+
+ブラウザーはアプリのAPIに通信し、Pythonサーバーが選択したLLMに接続します。分類では入力文と参照知識、説明では散布図画像と投影係数・群の統計などの数値根拠を送ります。Ollamaまたは多数の変数を扱う説明では、係数・分離寄与の上位変数を選択し、送信する数値を小数4桁に丸めます。計算結果と画面の値は丸めず保持します。
+
+LLMの通信・応答処理に失敗した場合は、画面に警告を表示してルール分類・定型説明へ切り替えます。別のプロバイダーへの自動転送は行いません。
+
+- 接続設定は [APIステータス](http://127.0.0.1:8001/api/status) で確認できます。`llm_enabled` は設定の有効性を表し、疎通成功を意味しません。
+- 通信エラー時は、サーバーを起動した環境から接続先に到達できるか、プロキシ設定も含めて確認してください。
+- 認証エラーはキー・アクセス権、利用上限エラーは残高・利用制限を確認してください。
+- 環境変数や `.env` の変更後はサーバーを再起動してください。
+
+## データの切り替え
+
+`backend/dataset.json` の `name` を変更し、サーバーを再起動して画面を再読み込みします。環境変数 `ULCA_DATASET` がある場合はそちらを優先します。
+
+| name | データ | サンプル・変数 |
+|---|---|---|
+| `wine`（既定） | scikit-learn付属のWine | 178件・13変数・3群 |
+| `mnist069` | MNISTの数字0・6・9 | 各500件、計1,500件・784画素 |
+
+Wineの内部ラベル0・1・2は、画面ではBarolo（赤）・Grignolino（緑）・Barbera（紫）と表示します。
+
+MNISTはscikit-learnのデータホーム内にある既存の `openml/openml.org/data/v1/download/52667/mnist_784.arff.gz` を読み込みます。データは同梱せず、自動ダウンロードも行いません。キャッシュの場所は `SCIKIT_LEARN_DATA` で指定できます。各数字の先頭500件を使用し、内部IDは0→数字0、1→数字6、2→数字9です。
+
+MNISTの変数名 `Pixel(行,列)` は1始まりで、左上が `(1,1)` です。箱ひげ図は元の画素値（0〜255）、投影計算はWineと同じく変数ごとに標準化した値を使用します。
+
+## 操作
+
+1. 右のアシスタントに「全体構造を把握したい」「Baroloの特徴を教えて」「BaroloとGrignolinoを比較して」などと入力します。
+2. 散布図と投影係数、説明を確認します。変数名をクリックすると、3群の元の値を箱ひげ図で比較できます。
+3. 左のスライダーで重み・alphaを調整できます。重心・分布楕円のドラッグでは、指定した距離・面積比に近づくようパラメータを逆調整します。
+
+- 初期表示は全群 `w_tg=0, w_bg=1, w_bw=1, alpha=10` で、最適化しません。自然言語による分析では200回のULCA評価で探索します。
+- 「Baroloの内部構造の特性が見たい」「赤の多様性を見たい」は内部変動の探索です。対象群の分散を初期以上に保ち、他群に対する群内分散比を最大化します。このモードでは自動探索の `w_bw` を0に固定します。
+- 重みは0〜1、alphaは0〜20です。`w_tg` と `w_bg` は独立して調整できます。
+- 投影係数は変数順・絶対値順で表示できます。
+- 散布図は＋／−で10〜10,000%に拡大縮小し、スクロールバー・ホイール・背景ドラッグで移動できます。Shift＋ホイールは横移動、「全体表示」で表示範囲を戻します。
+- 「分析の詳細」では評価指標やLLMの応答時間を確認できます。履歴はブラウザーのメモリー内に保持し、画面の再読み込みで消えます。
+
+### 分析結果の読み方
+
+係数の符号・大きさだけから、元の値の高低や因果関係を判断することはできません。内部変動の探索も、サブクラスタの存在を保証するものではありません。
+
+分布楕円は群の重心と共分散から向き・縦横比を決め、実際の点の95%以上を含む大きさで表示します。信頼区間ではありません。逆調整は目標形状の完全な再現を保証しません。
+
+直線状・点に潰れた投影は失敗として扱います。自動探索・逆調整では採用せず、手動調整時には直前の散布図を保持します。計算・評価・解釈の詳細は [WORKFLOW.md](backend/knowledge/WORKFLOW.md) と [Interpretation.md](backend/knowledge/Interpretation.md) を参照してください。
+
+## フォルダ構成
+
+```text
+backend/                 API・計算・LLM接続・設定
+  main.py                サーバー起動口
+  app.py                 API・入力検証・LLM連携
+  engine.py              分類・探索・評価・逆調整
+  ulca.py                固有値分解による投影
+  dataset.py             データ読み込み
+  ollama_client.py       Ollama接続
+  prompts.py             説明用プロンプト
+  knowledge/             実装に対応する参照知識
+frontend/
+  index.html             画面
+  public/assets/         JavaScript・CSS
+tests/                  回帰テスト
+scripts/                手動のLLM接続確認
+docs/                   説明資料・スクリーンショット
+```
+
+研究資料・過去のバックアップを保存したローカルの `archive/`、仮想環境、依存パッケージ、ログ、環境設定ファイルはGit管理対象外です。箱ひげ図のデータは `/api/dataset`、静的ファイルは `/assets/` から配信します。
+
+## 開発・検証
+
+### Pythonテスト
 
 ```powershell
+.venv/Scripts/python.exe -m pip install -r requirements-dev.txt
+$env:ULCA_DATASET = "wine"
 .venv/Scripts/python.exe -m pytest tests -q -p no:cacheprovider
 ```
 
-フロントエンドは `frontend` で `npm run build` を実行します。変更前のソースは `archive/backups/` に保存しています。今回の整理用バックアップに環境設定ファイルや依存パッケージは含めません。
+MNISTのテストはローカルキャッシュを用意して実行します。
 
-コードと文書の整理内容・確認範囲は [過去の確認記録](docs/CODE_REVIEW_20261026.md) に記録しています。
+```powershell
+$env:ULCA_DATASET = "mnist069"
+.venv/Scripts/python.exe -m pytest tests/test_mnist_dataset.py -q -p no:cacheprovider
+Remove-Item Env:ULCA_DATASET
+```
 
-## 2026-11-09 の整理
+2026-11-09の確認では、Wine設定で67件成功・MNIST専用3件スキップ、MNIST専用テストは3件成功でした。LLM通信の回帰テストは模擬応答を使います。実通信の確認は別途必要です。
 
-実行コードは `backend/` と `frontend/`、回帰テストは `tests/` に分離しました。起動コマンドは従来と同じです。フォルダ移動を反映するため、起動中のサーバーは再起動してください。
+### フロントエンド
 
-UI未使用の旧ULCA実装と静的Wineデータを削除し、箱ひげ図も `/api/dataset` のデータを使う構成に統一しました。静的ファイルのURLは `/assets/` です。旧リポジトリの `.git` 管理情報はアクセス制限のため `ulca/.git/` に残っています。
+Node.jsとnpmがある環境で実行します。APIサーバーは別途8001番で起動してください。
 
-研究資料・スライドと既存バックアップは `archive/` に保管しています。整理前のコードは `archive/backups/before_cleanup_20261109.zip` に保存しました（環境設定・依存パッケージを除く）。
+```powershell
+cd frontend
+npm ci
+npm run dev
+```
 
-Python実行依存は `backend/requirements.txt`、テストを含む開発依存は `requirements-dev.txt` からインストールできます。
+開発画面は5173番、API接続先は8001番です。`npm run build` で `frontend/dist/` を生成できます。通常のPythonサーバーはビルド生成物ではなく、`frontend/` 内のHTMLと静的ファイルを配信します。
